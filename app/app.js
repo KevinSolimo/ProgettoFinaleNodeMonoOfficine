@@ -1,17 +1,45 @@
+//Express
 const express = require("express");
 const app = express();
 
 //MongoDB
 const MongoClient = require('mongodb').MongoClient;
+
 //Cors per cossing site
 const cors = require('cors');
 
+//Server per socket
+var http = require('http').createServer(app);
+//Socket.io
+const io = require('socket.io')(8000);
+
+//Middleware
 app.use(cors());
 
 //Home
 app.get('/', function (req, res) {
     res.send({ message: 'WebService MonoOfficine' });
 });
+
+//---SOCKET---//
+io.on('connection', (socket) => {
+    socket.on('message', function (data) {
+        socket.emit('news', { hello: 'world' });
+      });
+    socket.on('ping', () => {
+        socket.emit('pong');
+        console.log("ping")
+    });
+
+    console.log("connect");
+
+    io.sockets.emit("unlock", { QR: 45 });
+
+    //socket.broadcast.emit("unlock", { QR: 45 });
+
+
+});
+
 
 //---API---//
 
@@ -54,6 +82,7 @@ app.get('/api/unlock/:QR', function (req, res) {
                     if (err) throw err;
 
                     db.close();
+                    global.io.emit("unlock", { QR: req.params.QR });
                     res.send(result);
 
                 });
@@ -105,6 +134,6 @@ app.get('/api/lock/:QR', function (req, res) {
 
 //---API---//
 
-app.listen(8080, function () {
+http.listen(8080, function () {
     console.log('Example app listening on port 8080!');
 });
