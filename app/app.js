@@ -17,26 +17,12 @@ const io = require('socket.io')(8000);
 app.use(cors());
 
 //Home
-app.get('/', function (req, res) {
+app.get('/', function(req, res) {
     res.send({ message: 'WebService MonoOfficine' });
 });
 
 //---SOCKET---//
 io.on('connection', (socket) => {
-    socket.on('message', function (data) {
-        socket.emit('news', { hello: 'world' });
-      });
-    socket.on('ping', () => {
-        socket.emit('pong');
-        console.log("ping")
-    });
-
-    console.log("connect");
-
-    io.sockets.emit("unlock", { QR: 45 });
-
-    //socket.broadcast.emit("unlock", { QR: 45 });
-
 
 });
 
@@ -44,14 +30,14 @@ io.on('connection', (socket) => {
 //---API---//
 
 // Load Position Scooter
-app.get('/api/monopattini', function (req, res) {
-    MongoClient.connect('mongodb+srv://ksolimo:wkyP8ch7MvVZnul8@cluster0-yosjr.mongodb.net/test?retryWrites=true,{useNewUrlParser: true}', function (err, db) {
+app.get('/api/monopattini', function(req, res) {
+    MongoClient.connect('mongodb+srv://ksolimo:wkyP8ch7MvVZnul8@cluster0-yosjr.mongodb.net/test?retryWrites=true,{useNewUrlParser: true}', function(err, db) {
         if (err) {
             throw err;
         }
         var dbo = db.db("Mono-Rent");
         var query = { usage: false };
-        dbo.collection("Monopattini").find(query).toArray(function (err, result) {
+        dbo.collection("Monopattini").find(query).toArray(function(err, result) {
             if (err) {
                 throw err;
             }
@@ -61,8 +47,8 @@ app.get('/api/monopattini', function (req, res) {
     });
 });
 
-app.get('/api/unlock/:QR', function (req, res) {
-    MongoClient.connect('mongodb+srv://ksolimo:wkyP8ch7MvVZnul8@cluster0-yosjr.mongodb.net/test?retryWrites=true,{useNewUrlParser: true}', function (err, db) {
+app.get('/api/unlock/:QR', function(req, res) {
+    MongoClient.connect('mongodb+srv://ksolimo:wkyP8ch7MvVZnul8@cluster0-yosjr.mongodb.net/test?retryWrites=true,{useNewUrlParser: true}', function(err, db) {
         if (err) {
             throw err;
         }
@@ -70,19 +56,19 @@ app.get('/api/unlock/:QR', function (req, res) {
 
         var query = { QR_Code: req.params.QR };
 
-        dbo.collection("Monopattini").find(query).toArray(function (err, result) {
+        dbo.collection("Monopattini").find(query).toArray(function(err, result) {
             if (err) throw err;
 
             if (result.length == 1) {
 
                 var newvalues = { $set: { usage: true } };
 
-                dbo.collection("Monopattini").updateOne(query, newvalues, function (err, result) {
+                dbo.collection("Monopattini").updateOne(query, newvalues, function(err, result) {
 
                     if (err) throw err;
 
                     db.close();
-                    global.io.emit("unlock", { QR: req.params.QR });
+                    io.sockets.emit("unlock", { QR: req.params.QR });
                     res.send(result);
 
                 });
@@ -97,8 +83,8 @@ app.get('/api/unlock/:QR', function (req, res) {
     });
 });
 
-app.get('/api/lock/:QR', function (req, res) {
-    MongoClient.connect('mongodb+srv://ksolimo:wkyP8ch7MvVZnul8@cluster0-yosjr.mongodb.net/test?retryWrites=true,{useNewUrlParser: true}', function (err, db) {
+app.get('/api/lock/:QR', function(req, res) {
+    MongoClient.connect('mongodb+srv://ksolimo:wkyP8ch7MvVZnul8@cluster0-yosjr.mongodb.net/test?retryWrites=true,{useNewUrlParser: true}', function(err, db) {
         if (err) {
             throw err;
         }
@@ -106,18 +92,19 @@ app.get('/api/lock/:QR', function (req, res) {
 
         var query = { QR_Code: req.params.QR };
 
-        dbo.collection("Monopattini").find(query).toArray(function (err, result) {
+        dbo.collection("Monopattini").find(query).toArray(function(err, result) {
             if (err) throw err;
 
             if (result.length == 1) {
 
                 var newvalues = { $set: { usage: false } };
 
-                dbo.collection("Monopattini").updateOne(query, newvalues, function (err, result) {
+                dbo.collection("Monopattini").updateOne(query, newvalues, function(err, result) {
 
                     if (err) throw err;
 
                     db.close();
+                    io.sockets.emit("lock", { QR: req.params.QR });
                     res.send(result);
 
                 });
@@ -134,6 +121,6 @@ app.get('/api/lock/:QR', function (req, res) {
 
 //---API---//
 
-http.listen(8080, function () {
+http.listen(8080, function() {
     console.log('Example app listening on port 8080!');
 });
