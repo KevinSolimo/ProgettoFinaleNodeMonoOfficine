@@ -172,10 +172,15 @@ app.get('/api/lock/:QR/:id_Utente/:date', function(req, res) {
                     var insert = { $set: { ora_Blocco: new Date() } };
                     dbo.collection("Noleggio").updateOne(search, insert, function(err, result) {
                         if (err) throw err;
-                        console.log(search);
-                        db.close();
+
                         io.sockets.emit("lock", { QR: req.params.QR });
-                        res.send({ state: 'ok' });
+                        dbo.collection("Noleggio").find(search).toArray(function(err, result) {
+                            if (err) res.send({ state: 'ko' });
+                            console.log(result[0].percorso);
+                            db.close();
+                            res.send({ state: 'ok', position: result[0].percorso, tempo: { ora_Sblocco: result[0].ora_Sblocco, ora_Blocco: result[0].ora_Blocco } });
+                        });
+
                     });
                 });
 
