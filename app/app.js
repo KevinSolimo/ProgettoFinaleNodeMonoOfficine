@@ -39,7 +39,7 @@ io.on('connection', (socket) => {
 
                 if (result.length == 1) {
 
-                    var newvalues = { $push: { percorso: { lat : data.position.latitude, lng : data.position.longitude } } };
+                    var newvalues = { $push: { percorso: { lat: data.position.latitude, lng: data.position.longitude } } };
 
                     dbo.collection("Noleggio").updateOne(query, newvalues, function(err, result) {
                         if (err) throw err;
@@ -50,6 +50,40 @@ io.on('connection', (socket) => {
             });
         });
 
+    });
+
+    socket.on('fixed', (data) => {
+        MongoClient.connect('mongodb+srv://ksolimo:wkyP8ch7MvVZnul8@cluster0-yosjr.mongodb.net/test?retryWrites=true,{useNewUrlParser: true}', function(err, db) {
+            if (err) res.send({ state: 'ko' });
+
+            var dbo = db.db("Mono-Rent");
+
+            var query = { QR_Code: data.QR };
+
+            dbo.collection("Monopattini").find(query).toArray(function(err, result) {
+                if (err) res.send({ state: 'ko' });;
+
+                if (result.length == 1) {
+
+                    var newvalues = { $set: { usage: false } };
+
+                    dbo.collection("Monopattini").updateOne(query, newvalues, function(err, result) {
+
+                        if (err) res.send({ state: 'ko' });;
+
+                        db.close();
+                        res.send({ state: 'ok' });
+
+                    });
+
+                } else {
+
+                    db.close();
+                    res.send({ state: 'ko' });
+
+                }
+            });
+        });
     });
 
 });
@@ -85,7 +119,7 @@ app.get('/api/unlock/:QR', function(req, res) {
         var query = { QR_Code: req.params.QR };
 
         dbo.collection("Monopattini").find(query).toArray(function(err, result) {
-            if (err) res.send({state : 'ko'});;
+            if (err) res.send({ state: 'ko' });;
 
             if (result.length == 1) {
 
@@ -93,18 +127,18 @@ app.get('/api/unlock/:QR', function(req, res) {
 
                 dbo.collection("Monopattini").updateOne(query, newvalues, function(err, result) {
 
-                    if (err) res.send({state : 'ko'});;
+                    if (err) res.send({ state: 'ko' });;
 
                     db.close();
                     io.sockets.emit("unlock", { QR: req.params.QR });
-                    res.send({state : 'ok'});
+                    res.send({ state: 'ok' });
 
                 });
 
             } else {
 
                 db.close();
-                res.send({state : 'ko'});
+                res.send({ state: 'ko' });
 
             }
         });
@@ -113,14 +147,14 @@ app.get('/api/unlock/:QR', function(req, res) {
 
 app.get('/api/lock/:QR', function(req, res) {
     MongoClient.connect('mongodb+srv://ksolimo:wkyP8ch7MvVZnul8@cluster0-yosjr.mongodb.net/test?retryWrites=true,{useNewUrlParser: true}', function(err, db) {
-        if (err) res.send({state : 'ko'});
+        if (err) res.send({ state: 'ko' });
 
         var dbo = db.db("Mono-Rent");
 
         var query = { QR_Code: req.params.QR };
 
         dbo.collection("Monopattini").find(query).toArray(function(err, result) {
-            if (err) res.send({state : 'ko'});;
+            if (err) res.send({ state: 'ko' });;
 
             if (result.length == 1) {
 
@@ -128,23 +162,60 @@ app.get('/api/lock/:QR', function(req, res) {
 
                 dbo.collection("Monopattini").updateOne(query, newvalues, function(err, result) {
 
-                    if (err) res.send({state : 'ko'});;
+                    if (err) res.send({ state: 'ko' });;
 
                     db.close();
                     io.sockets.emit("lock", { QR: req.params.QR });
-                    res.send({state : 'ok'});
+                    res.send({ state: 'ok' });
 
                 });
 
             } else {
 
                 db.close();
-                res.send({state : 'ko'});
+                res.send({ state: 'ko' });
 
             }
         });
     });
 });
+
+app.get('/api/broken/:QR', function(req, res) {
+    MongoClient.connect('mongodb+srv://ksolimo:wkyP8ch7MvVZnul8@cluster0-yosjr.mongodb.net/test?retryWrites=true,{useNewUrlParser: true}', function(err, db) {
+        if (err) {
+            throw err;
+        }
+        var dbo = db.db("Mono-Rent");
+
+        var query = { QR_Code: req.params.QR };
+
+        dbo.collection("Monopattini").find(query).toArray(function(err, result) {
+            if (err) res.send({ state: 'ko' });;
+
+            if (result.length == 1) {
+
+                var newvalues = { $set: { usage: true } };
+
+                dbo.collection("Monopattini").updateOne(query, newvalues, function(err, result) {
+
+                    if (err) res.send({ state: 'ko' });;
+
+                    db.close();
+                    io.sockets.emit("broken", { QR: req.params.QR });
+                    res.send({ state: 'ok' });
+
+                });
+
+            } else {
+
+                db.close();
+                res.send({ state: 'ko' });
+
+            }
+        });
+    });
+});
+
 
 //---CLOSE API---//
 
