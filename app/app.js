@@ -32,11 +32,11 @@ io.on('connection', (socket) => {
             if (err) throw err;
             var dbo = db.db("Mono-Rent");
 
-            var query = { QR_Code: data.QR };
-
-            dbo.collection("Monopattini").find(query).toArray(function(err, result) {
+            var query = { QR_Code: data.QR, id_Utente: data.id_Utente, ora_Sblocco: new Date(data.date) };
+            console.log(query);
+            dbo.collection("Noleggio").find(query).toArray(function(err, result) {
                 if (err) throw err;
-
+                console.log(result);
                 if (result.length == 1) {
 
                     var newvalues = { $push: { percorso: { lat: data.position.latitude, lng: data.position.longitude } } };
@@ -44,6 +44,7 @@ io.on('connection', (socket) => {
                     dbo.collection("Noleggio").updateOne(query, newvalues, function(err, result) {
                         if (err) throw err;
                     });
+
                 } else {
                     db.close();
                 }
@@ -107,7 +108,7 @@ app.get('/api/monopattini', function(req, res) {
     });
 });
 
-app.get('/api/unlock/:QR', function(req, res) {
+app.get('/api/unlock/:QR/:id_Utente/', function(req, res) {
     MongoClient.connect('mongodb+srv://ksolimo:wkyP8ch7MvVZnul8@cluster0-yosjr.mongodb.net/test?retryWrites=true,{useNewUrlParser: true}', function(err, db) {
         if (err) {
             throw err;
@@ -122,15 +123,20 @@ app.get('/api/unlock/:QR', function(req, res) {
             if (result.length == 1) {
 
                 var newvalues = { $set: { usage: true } };
-
                 dbo.collection("Monopattini").updateOne(query, newvalues, function(err, result) {
 
-                    if (err) res.send({ state: 'ko' });;
+                    if (err) res.send({ state: 'ko' });
 
-                    db.close();
-                    io.sockets.emit("unlock", { QR: req.params.QR });
-                    res.send({ state: 'ok' });
+                    var date = new Date();
 
+                    io.sockets.emit("unlock", { QR: req.params.QR, id_Utente: req.params.id_Utente, date: date });
+
+                    var insert = { id_Utente: req.params.id_Utente, QR_Code: req.params.QR, ora_Sblocco: date, percorso: [] };
+                    dbo.collection("Noleggio").insertOne(insert, function(err, result) {
+                        if (err) throw err;
+                        db.close();
+                        res.send({ state: 'ok', date: date });
+                    });
                 });
 
             } else {
@@ -143,7 +149,7 @@ app.get('/api/unlock/:QR', function(req, res) {
     });
 });
 
-app.get('/api/lock/:QR', function(req, res) {
+app.get('/api/lock/:QR/:id_Utente/:date', function(req, res) {
     MongoClient.connect('mongodb+srv://ksolimo:wkyP8ch7MvVZnul8@cluster0-yosjr.mongodb.net/test?retryWrites=true,{useNewUrlParser: true}', function(err, db) {
         if (err) res.send({ state: 'ko' });
 
@@ -162,10 +168,15 @@ app.get('/api/lock/:QR', function(req, res) {
 
                     if (err) res.send({ state: 'ko' });;
 
-                    db.close();
-                    io.sockets.emit("lock", { QR: req.params.QR });
-                    res.send({ state: 'ok' });
-
+                    var search = { QR_Code: req.params.QR, id_Utente: req.params.id_Utente, ora_Sblocco: new Date(req.params.date) }
+                    var insert = { $set: { ora_Blocco: new Date() } };
+                    dbo.collection("Noleggio").updateOne(search, insert, function(err, result) {
+                        if (err) throw err;
+                        console.log(search);
+                        db.close();
+                        io.sockets.emit("lock", { QR: req.params.QR });
+                        res.send({ state: 'ok' });
+                    });
                 });
 
             } else {
